@@ -384,10 +384,10 @@ fm_nm_driving_block() {  # <forge>
 "
     pr_reattach_clause="; once checks are green it returns \`checks-passed\` immediately, and"
   fi
-  # config/wait-no-turns selects the foreground drive. Absent, the text matches
-  # the backgrounded drive a home had before that flag.
+  # The foreground drive is the default. The config/wait-polling opt-out keeps
+  # the backgrounded drive text for a harness where a blocking hold fails.
   wait_cfg=${CONFIG:-${FM_CONFIG_OVERRIDE:-${FM_HOME:-}/config}}
-  if [ -e "$wait_cfg/wait-no-turns" ]; then
+  if [ ! -e "$wait_cfg/wait-polling" ]; then
     drive_block="Drive the run with ONE foreground \`no-mistakes axi run\` and let it block.
 It bounds its own hold for you: \`--wait\` (default 8m) exists precisely so a harness with a ten-minute command cap gets a structured return instead of being killed mid-hold.
 Declare that wait using the brief's status-reporting rule before the foreground drive call.

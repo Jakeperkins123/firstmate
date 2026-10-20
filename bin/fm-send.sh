@@ -1084,7 +1084,7 @@ else
     fm_task_inbox_ring "$TARGET_BACKEND" "$T" "$INBOX_RECORD" "$EXPECTED_LABEL" || ring_rc=$?
     ring_retry="the watcher will re-ring"
     if [ -n "$FIRE_AND_FORGET_ID" ] \
-      && [ -e "${FM_CONFIG_OVERRIDE:-$FM_HOME/config}/wait-no-turns" ]; then
+      && [ ! -e "${FM_CONFIG_OVERRIDE:-$FM_HOME/config}/wait-polling" ]; then
       case "$ring_rc" in
       1|2)
         if fm_task_inbox_mark_retry "$STATE" "$INBOX_TASK_ID" "$INBOX_RECORD"; then

@@ -248,7 +248,6 @@ test_fire_and_forget_unlanded_ring_owes_one_retry() {
   local dir err rc
   dir=$(setup_case faf-retry)
   mkdir -p "$dir/home/config"
-  : > "$dir/home/config/wait-no-turns"
   err="$dir/send.err"
   # The stub lists only window fm-t1, so the secondmate takes it over.
   rm -f "$dir/home/state/t1.meta"
@@ -274,22 +273,23 @@ test_fire_and_forget_unlanded_ring_owes_one_retry() {
   pass "fm-send inbox: a fire-and-forget ring that did not land owes one retry ring"
 }
 
-# Without the flag a skipped fire-and-forget ring is not owed a retry.
-test_fire_and_forget_retry_stays_off_without_the_flag() {
+# Under the config/wait-polling opt-out a skipped fire-and-forget ring is not owed a retry.
+test_fire_and_forget_retry_stays_off_under_wait_polling() {
   local dir err rc
   dir=$(setup_case faf-retry-off)
   err="$dir/send.err"
-  [ ! -e "$dir/home/config/wait-no-turns" ]
+  mkdir -p "$dir/home/config"
+  : > "$dir/home/config/wait-polling"
   rm -f "$dir/home/state/t1.meta"
   fm_write_secondmate_meta "$dir/home/state/domain.meta" "$dir/home" "sess:fm-t1" alpha claude
   run_send "$dir" "$err" FM_FAKE_TMUX_COMPOSER=pending -- \
     fm-domain --fire-and-forget 0123456789abcdef "reconcile your books"; rc=$?
   expect_code 0 "$rc" "a skipped fire-and-forget ring is still a sent steer"
   [ ! -e "$dir/home/state/domain.inbox/.retry-ring" ] \
-    || fail "an absent flag still owed a fire-and-forget retry"
+    || fail "config/wait-polling still owed a fire-and-forget retry"
   assert_contains "$(cat "$err")" "the watcher will re-ring" \
-    "an absent flag should keep the ordinary re-ring notice"
-  pass "fm-send inbox: without config/wait-no-turns a fire-and-forget ring is not retried"
+    "config/wait-polling should keep the ordinary re-ring notice"
+  pass "fm-send inbox: under config/wait-polling a fire-and-forget ring is not retried"
 }
 
 test_harness_invocations_stay_typed() {
@@ -511,7 +511,7 @@ test_resend_enqueues_new_sequence
 test_pending_composer_skips_ring_advisorily
 test_failed_ring_is_still_sent
 test_fire_and_forget_unlanded_ring_owes_one_retry
-test_fire_and_forget_retry_stays_off_without_the_flag
+test_fire_and_forget_retry_stays_off_under_wait_polling
 test_harness_invocations_stay_typed
 test_explicit_target_stays_typed
 test_key_path_never_touches_inbox

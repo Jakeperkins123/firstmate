@@ -453,16 +453,16 @@ INBOX_DIR=$(shell_quote "$STATE/$ID.inbox")
 # path here remains the fallback for a worker launched without that export.
 # The doorbell itself is self-describing, so this section is reinforcement
 # for the natural-checkpoint habit, not the only carrier of the instruction.
-# config/wait-no-turns (docs/configuration.md) adds the line that a waiting
+# By default (docs/configuration.md) the section adds the line that a waiting
 # worker does not poll the inbox: checkpoint checks happen during active work,
-# so waiting still spends no turns.
+# so waiting still spends no turns. The config/wait-polling opt-out drops it.
 IFS= read -r -d '' INBOX_SECTION <<EOF || true
 # Firstmate instruction inbox
 Firstmate steers you through durable message files in $INBOX_DIR.
 When a terminal message says an instruction is waiting there - and at any natural checkpoint when you are unsure - list them with \`find $INBOX_DIR -maxdepth 1 -name '*.msg' 2>/dev/null | sort -V\`, read and act on each message in numeric order, then acknowledge each handled message by moving it: \`mv $INBOX_DIR/NNN.msg $INBOX_DIR/handled/\`.
 The move IS the acknowledgement: without it firstmate rings again and eventually treats you as stuck. An empty or absent inbox needs no action.
 EOF
-if [ -e "$CONFIG/wait-no-turns" ]; then
+if [ ! -e "$CONFIG/wait-polling" ]; then
   INBOX_SECTION+="Do not poll or list the inbox while waiting; a waiting instruction rings."$'\n'
 fi
 INBOX_SECTION=${INBOX_SECTION%$'\n'}
@@ -470,7 +470,7 @@ INBOX_SECTION=${INBOX_SECTION%$'\n'}
 # How a crewmate or scout waits. Every model turn resends the whole context, so
 # a wait must cost no turns: a decision wait ends the turn, and an external
 # wait sleeps in one bounded blocking shell command sized to the harness.
-# Emitted only when config/wait-no-turns is present.
+# Emitted by default; omitted only when the config/wait-polling opt-out exists.
 IFS= read -r -d '' WAIT_SECTION <<'EOF' || true
 # Waiting
 Every turn you take resends your whole context, so a wait must cost no turns.
@@ -486,8 +486,24 @@ A wait your shell can watch this way needs no `paused:` line, except your own pi
 EOF
 WAIT_SECTION=${WAIT_SECTION%$'\n'}
 WAIT_BLOCK=
-if [ -e "$CONFIG/wait-no-turns" ]; then
+if [ ! -e "$CONFIG/wait-polling" ]; then
   WAIT_BLOCK="$WAIT_SECTION"$'\n\n'
+fi
+
+# How a secondmate lead waits. Same default-on gate as WAIT_SECTION: its
+# supervision cycle, inbox doorbell, and the main firstmate's messages each
+# start a turn, so a lead never spends turns on sleep-then-check.
+IFS= read -r -d '' SECONDMATE_WAIT_SECTION <<'EOF' || true
+# Waiting
+Every turn you take resends your whole context, so waiting must cost no turns.
+Your live supervision cycle, your instruction inbox doorbell, and the main firstmate's messages each start a new turn when something changes, so once a turn's work is handled and that cycle is live, end your turn instead of checking again.
+Never spend turns on `sleep` followed by a status, pane, inbox, or PR check, and never background a command in order to poll it.
+When a turn must wait on something external, such as PR checks or a pipeline run, use ONE blocking shell command that returns when the state changes, such as `gh pr checks <pr> --watch` or `until <condition>; do sleep 30; done`, bounded by your harness's largest command timeout; for a longer wait, arm a tokenless condition with `bin/fm-procevent-when.sh arm` so the watcher wakes you when it holds.
+EOF
+SECONDMATE_WAIT_SECTION=${SECONDMATE_WAIT_SECTION%$'\n'}
+SECONDMATE_WAIT_BLOCK=
+if [ ! -e "$CONFIG/wait-polling" ]; then
+  SECONDMATE_WAIT_BLOCK=$'\n\n'"$SECONDMATE_WAIT_SECTION"
 fi
 
 if [ "$KIND" = secondmate ]; then
@@ -552,7 +568,7 @@ Before treating an investigation or visual review as complete, load \`captain-ho
 A message with NO marker is the captain typing directly into your pane: treat it as authoritative captain intervention and stay conversational exactly as you would for any captain message; do not force it onto the status path.
 A request arriving through the instruction inbox below follows the same marker and reply rules.
 
-$INBOX_SECTION
+$INBOX_SECTION$SECONDMATE_WAIT_BLOCK
 
 # Escalation to main firstmate
 Handle routine work yourself.

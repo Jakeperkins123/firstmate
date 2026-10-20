@@ -613,12 +613,15 @@ Secondmate homes inherit the primary's resolved role, never its raw file: a prim
 In a secondmate home the file is honored only while the inheritance receipt `config/.fm-inherit-firstmate-role.generation` proves the exact bytes the primary last published (`bin/fm-config-inherit-lib.sh`); a role file with no matching receipt or a stale grant authorizes nothing.
 The receipt prevents accidental publication through supported paths; it proves consistency, not provenance, and is not a security boundary against a process that deliberately forges local records.
 
-## Waiting worker spends no turns (config/wait-no-turns)
+## Waiting worker spends no turns by default (config/wait-polling opts out)
 
-The optional local, gitignored `config/wait-no-turns` presence flag opts this home into keeping a waiting worker from spending turns until it is answered.
-With it present, ship and scout briefs gain the `# Waiting` section and the foreground no-mistakes drive text, every brief's inbox section keeps the natural-checkpoint check and adds that a waiting worker does not poll or list its inbox because a waiting instruction rings, a pending-reply recovery waits while that mate has its own open decision or blocker, and a fire-and-forget steer whose doorbell did not land gets one later ring.
-With the file absent, generated briefs omit the waiting section and the no-poll inbox line, the drive text backgrounds the call, recovery sends during an open decision, and a fire-and-forget steer is not owed a retry ring.
-The flag is a home-local preference and is not inherited by secondmate homes.
+A waiting worker spends no turns until it is answered; this is the default for every home, including the primary and every new or restarted secondmate home, with no setup.
+By default, ship and scout briefs carry the `# Waiting` section and the foreground no-mistakes drive text, every brief's inbox section keeps the natural-checkpoint check and adds that a waiting worker does not poll or list its inbox because a waiting instruction rings, a pending-reply recovery waits while that mate has its own open decision or blocker, and a fire-and-forget steer whose doorbell did not land gets one later ring.
+
+The optional local, gitignored `config/wait-polling` presence flag is the fallback for a harness or host where blocking waits or event wakes do not work.
+With it present, generated briefs omit the waiting section and the no-poll inbox line, the drive text backgrounds the call, recovery sends during an open decision, and a fire-and-forget steer is not owed a retry ring.
+The opt-out is a home-local preference and is not inherited by secondmate homes.
+The former opt-in flag `config/wait-no-turns` is no longer read; a leftover copy is harmless.
 
 ## No-mistakes pipeline spend (config/pipeline-spend)
 

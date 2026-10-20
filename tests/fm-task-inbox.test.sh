@@ -562,7 +562,6 @@ test_fire_and_forget_records_never_enter_the_ladder() {
 test_fire_and_forget_retry_is_owed_once() {
   local state fire tracked action
   state="$TMP_ROOT/faf-retry/state"; mkdir -p "$state" "$TMP_ROOT/faf-retry/config"
-  : > "$TMP_ROOT/faf-retry/config/wait-no-turns"
   export FM_CONFIG_OVERRIDE="$TMP_ROOT/faf-retry/config"
   fire=$(inbox_lib "$state" fm_task_inbox_write "$state" t1 "one-shot steer" fire-and-forget)
   age_path "$fire"
@@ -596,20 +595,21 @@ test_fire_and_forget_retry_is_owed_once() {
   pass "inbox: a fire-and-forget record whose ring did not land is owed exactly one retry"
 }
 
-# A retry mark is ignored while config/wait-no-turns is absent.
-test_fire_and_forget_retry_is_quiet_without_the_flag() {
+# A retry mark is ignored under the config/wait-polling opt-out.
+test_fire_and_forget_retry_is_quiet_under_wait_polling() {
   local state fire action
   state="$TMP_ROOT/faf-retry-off/state"; mkdir -p "$state" "$TMP_ROOT/faf-retry-off/config"
+  : > "$TMP_ROOT/faf-retry-off/config/wait-polling"
   export FM_CONFIG_OVERRIDE="$TMP_ROOT/faf-retry-off/config"
   fire=$(inbox_lib "$state" fm_task_inbox_write "$state" t1 "one-shot steer" fire-and-forget)
   age_path "$fire"
   inbox_lib "$state" fm_task_inbox_mark_retry "$state" t1 "$fire"
   age_path "$state/t1.inbox/.retry-ring"
   action=$(FM_TASK_INBOX_GRACE_SECS=60 inbox_lib "$state" fm_task_inbox_due_action "$state" t1)
-  [ "$action" = quiet ] || fail "an absent flag still owed a retry ring, got: $action"
-  [ -e "$state/t1.inbox/.retry-ring" ] || fail "an absent flag removed a retry mark it should have left"
+  [ "$action" = quiet ] || fail "config/wait-polling still owed a retry ring, got: $action"
+  [ -e "$state/t1.inbox/.retry-ring" ] || fail "config/wait-polling removed a retry mark it should have left"
   unset FM_CONFIG_OVERRIDE
-  pass "inbox: without config/wait-no-turns a fire-and-forget retry mark stays quiet"
+  pass "inbox: under config/wait-polling a fire-and-forget retry mark stays quiet"
 }
 
 test_ring_ladder_policy() {
@@ -859,7 +859,6 @@ test_watcher_retry_ignores_busy_reset_failure() {
   busy_steer_check "$dir"
   mv "$dir/state/t1.inbox/001.msg" "$dir/state/t1.inbox/handled/"
   mkdir -p "$dir/config"
-  : > "$dir/config/wait-no-turns"
   rec=$(inbox_lib "$dir/state" fm_task_inbox_write "$dir/state" t1 "one-shot steer" fire-and-forget)
   inbox_lib "$dir/state" fm_task_inbox_mark_retry "$dir/state" t1 "$rec"
   block_busy_reset "$dir"
@@ -1015,7 +1014,6 @@ test_watcher_pays_fire_and_forget_retry_once() {
   local dir state out log pid fire rings i=0
   dir=$(setup_watch_case faf-retry)
   mkdir -p "$dir/config"
-  : > "$dir/config/wait-no-turns"
   state="$dir/state"; out="$dir/watch.out"; log="$dir/send.log"; : > "$log"
   fire=$(inbox_lib "$state" fm_task_inbox_write "$state" t1 "one-shot steer" fire-and-forget)
   age_path "$fire"
@@ -1057,7 +1055,6 @@ test_watcher_holds_retry_while_the_worker_decides() {
   local dir state log fire rings
   dir=$(setup_watch_case faf-retry-decision)
   mkdir -p "$dir/config"
-  : > "$dir/config/wait-no-turns"
   export FM_CONFIG_OVERRIDE="$dir/config"
   state="$dir/state"; log="$dir/send.log"; : > "$log"
   fire=$(inbox_lib "$state" fm_task_inbox_write "$state" t1 "one-shot steer" fire-and-forget)
@@ -1084,7 +1081,6 @@ test_watcher_retry_keeps_a_newer_mark() {
   local dir state log fire newer rings
   dir=$(setup_watch_case faf-retry-newer)
   mkdir -p "$dir/config"
-  : > "$dir/config/wait-no-turns"
   export FM_CONFIG_OVERRIDE="$dir/config"
   state="$dir/state"; log="$dir/send.log"; : > "$log"
   fire=$(inbox_lib "$state" fm_task_inbox_write "$state" t1 "one-shot steer" fire-and-forget)
@@ -1194,7 +1190,7 @@ test_writer_retries_after_a_vanished_lock_collision
 test_ladder_writes_ignore_vanished_inbox
 test_fire_and_forget_records_never_enter_the_ladder
 test_fire_and_forget_retry_is_owed_once
-test_fire_and_forget_retry_is_quiet_without_the_flag
+test_fire_and_forget_retry_is_quiet_under_wait_polling
 test_ring_ladder_policy
 test_watcher_rerings_idle_pane_quietly
 test_watcher_waits_on_busy_pane

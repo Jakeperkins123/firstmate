@@ -1054,7 +1054,6 @@ test_ship_and_scout_teach_validation_round_pause() {
   local home kind id brief
   home="$TMP_ROOT/validation-round-pause-home"
   mkdir -p "$home/data" "$home/config"
-  : > "$home/config/wait-no-turns"
 
   for kind in ship scout; do
     id="brief-validation-round-pause-$kind"
@@ -1204,7 +1203,6 @@ test_workers_wait_without_spending_turns() {
   local home id brief
   home="$TMP_ROOT/wait-home"
   mkdir -p "$home/data" "$home/config"
-  : > "$home/config/wait-no-turns"
   FM_HOME="$home" "$ROOT/bin/fm-brief.sh" brief-wait-ship some-proj --mode no-mistakes >/dev/null 2>&1 \
     || fail "fm-brief.sh ship scaffold exited non-zero"
   FM_HOME="$home" "$ROOT/bin/fm-brief.sh" brief-wait-scout some-proj --scout >/dev/null 2>&1 \
@@ -1238,25 +1236,33 @@ test_workers_wait_without_spending_turns() {
   assert_grep "Do not poll or list the inbox while waiting; a waiting instruction rings." "$brief" \
     "secondmate: polling the inbox while waiting is not forbidden"
   assert_grep "natural checkpoint" "$brief" "secondmate: the flag dropped the natural-checkpoint inbox check"
+  assert_grep "waiting must cost no turns" "$brief" "secondmate: the default brief lacks the waiting section"
+  assert_grep "Never spend turns on \`sleep\` followed by a status, pane, inbox, or PR check" "$brief" \
+    "secondmate: sleep-then-check is not forbidden"
   pass "fm-brief: workers end the turn on a decision, wait in one bounded shell command, and never poll"
 }
 
-# Without config/wait-no-turns the scaffold matches the pre-flag brief and drive text.
-test_wait_no_turns_absent_keeps_the_previous_brief() {
+# With the config/wait-polling opt-out the scaffold keeps the polling-era brief and drive text.
+test_wait_polling_keeps_the_previous_brief() {
   local home brief
   home="$TMP_ROOT/wait-off"
-  mkdir -p "$home/data"
-  [ ! -e "$home/config/wait-no-turns" ]
+  mkdir -p "$home/data" "$home/config"
+  : > "$home/config/wait-polling"
   FM_HOME="$home" "$ROOT/bin/fm-brief.sh" brief-wait-off some-proj --mode no-mistakes >/dev/null 2>&1 \
     || fail "fm-brief.sh ship scaffold exited non-zero"
   brief="$home/data/brief-wait-off/brief.md"
-  assert_no_grep "end your turn at once" "$brief" "an absent flag still added the waiting section"
-  assert_grep "natural checkpoint" "$brief" "an absent flag dropped the unprompted inbox check"
-  assert_no_grep "Do not poll or list the inbox while waiting" "$brief" "an absent flag still added the no-poll inbox line"
-  assert_grep "background the drive call" "$brief" "an absent flag replaced the backgrounded drive text"
+  assert_no_grep "end your turn at once" "$brief" "config/wait-polling still added the waiting section"
+  assert_grep "natural checkpoint" "$brief" "config/wait-polling dropped the unprompted inbox check"
+  assert_no_grep "Do not poll or list the inbox while waiting" "$brief" "config/wait-polling still added the no-poll inbox line"
+  assert_grep "background the drive call" "$brief" "config/wait-polling replaced the backgrounded drive text"
   assert_no_grep "issue the same foreground call again" "$brief" \
-    "an absent flag still asked for the foreground reattach"
-  pass "fm-brief: without config/wait-no-turns the brief and drive text stay as they were"
+    "config/wait-polling still asked for the foreground reattach"
+  FM_SECONDMATE_CHARTER='Supervise the alpha domain.' \
+    FM_HOME="$home" "$ROOT/bin/fm-brief.sh" brief-wait-off-sm --secondmate --no-projects >/dev/null 2>&1 \
+    || fail "fm-brief.sh secondmate scaffold exited non-zero"
+  assert_no_grep "waiting must cost no turns" "$home/data/brief-wait-off-sm/brief.md" \
+    "config/wait-polling still added the secondmate waiting section"
+  pass "fm-brief: config/wait-polling keeps the polling-era brief and drive text"
 }
 
 test_worker_role_scope() {
@@ -1659,7 +1665,7 @@ test_scout_and_secondmate_scaffold
 test_scout_lavish_line_follows_presentation_floor
 test_inbox_listing_command_is_safe_on_empty_inbox
 test_workers_wait_without_spending_turns
-test_wait_no_turns_absent_keeps_the_previous_brief
+test_wait_polling_keeps_the_previous_brief
 test_home_brief_include_is_appended_last
 test_base_branch_is_rendered_and_bounded
 test_ship_branch_prefix_defaults_to_legacy_fm
